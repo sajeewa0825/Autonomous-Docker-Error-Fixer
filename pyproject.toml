@@ -1,0 +1,21 @@
+[project]
+name = "project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "docx>=0.2.4",
+    "fastapi>=0.119.0",
+    "langchain-groq>=1.0.0",
+    "langgraph>=1.0.0",
+    "pgvector>=0.4.1",
+    "psycopg2>=2.9.11",
+    "pymupdf>=1.26.5",
+    "python-docx>=1.2.0",
+    "python-dotenv>=1.1.1",
+    "python-multipart>=0.0.20",
+    "sentence-transformers>=5.1.1",
+    "sqlalchemy>=2.0.44",
+    "uvicorn>=0.37.0",
+]
