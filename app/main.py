@@ -3,6 +3,7 @@ from app.core.config import engine
 from app.db.model.document_model import Document
 from app.db.model.chat_model import ChatHistory
 from app.api.routes.documents.router import router as document_router
+from app.api.routes.llm.router import router as llm_router
 from app.db.create_vector_index import create_vector_index
 
 
@@ -16,6 +17,7 @@ def startup_event():
 
 # Main route
 app.include_router(document_router, prefix="/document", tags=["document"])
+app.include_router(llm_router, prefix="/llm", tags=["llm"])
 
 @app.get("/")
 async def read_root():
