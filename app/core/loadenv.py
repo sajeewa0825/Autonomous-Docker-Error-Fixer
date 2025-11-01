@@ -13,5 +13,6 @@ class Settings:
     MAX_TOKENS: int = int(os.getenv("MAX_TOKENS", 512))
     Top_K_Context: int = int(os.getenv("Top_K_Context", 1))
     CHAT_HISTORY_LIMIT: int = int(os.getenv("CHAT_HISTORY_LIMIT", 10))
+    DOCKER_CONTAINER_NAME: str = os.getenv("DOCKER_CONTAINER_NAME")
 
 settings = Settings()

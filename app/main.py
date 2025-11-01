@@ -5,6 +5,8 @@ from app.db.model.chat_model import ChatHistory
 from app.api.routes.documents.router import router as document_router
 from app.api.routes.llm.router import router as llm_router
 from app.db.create_vector_index import create_vector_index
+from app.services.docker.container_logs import watch_docker_logs
+import threading
 
 
 app = FastAPI()
@@ -14,6 +16,9 @@ def startup_event():
     Document.metadata.create_all(bind=engine)
     ChatHistory.metadata.create_all(bind=engine)
     create_vector_index()
+
+    # Start log watcher thread
+    threading.Thread(target=watch_docker_logs, daemon=True).start()
 
 # Main route
 app.include_router(document_router, prefix="/document", tags=["document"])
