@@ -3,16 +3,31 @@ from langgraph.prebuilt import ToolNode
 from app.services.ai_agent.state import AgentState
 from app.services.ai_agent.agent import llm_call, decision_node, tools
 
+from app.services.ai_agent.log_analysis import analyze_log_line
+from app.services.ai_agent.error_decision import is_error_log
+
 def build_agentic_rag_graph():
-
-    # Build the state graph for the agentic RAG process
     graph = StateGraph(AgentState)
-    graph.add_node("agent", llm_call)
-    tool_node = ToolNode(tools=tools)
-    graph.add_node("tools", tool_node)
 
-    # Define the flow of the graph
-    graph.set_entry_point("agent")
+    # Existing nodes
+    graph.add_node("agent", llm_call)
+    graph.add_node("tools", ToolNode(tools=tools))
+
+    # New Docker log analyzer node
+    graph.add_node("log_analyzer", analyze_log_line)
+
+    # Flow:
+    graph.set_entry_point("log_analyzer")
+    graph.add_conditional_edges(
+        "log_analyzer",
+        is_error_log,
+        {
+            "error": "agent",
+            "ok": END,
+        },
+    )
+
+    # Keep your existing RAG flow for the "agent"
     graph.add_conditional_edges(
         "agent",
         decision_node,
