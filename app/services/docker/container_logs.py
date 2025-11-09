@@ -4,7 +4,6 @@ from app.core.loadenv import Settings
 from app.services.ai_agent.graph import build_agentic_rag_graph
 from langchain_groq import ChatGroq
 
-
 llm_instance = ChatGroq(
     model=Settings.MODEL_NAME,
     temperature=Settings.TEMPERATURE,
@@ -39,7 +38,7 @@ def watch_docker_logs():
             # 🔍 Send log line to your LangGraph workflow
             try:
                 # print(f"[LOG] {log_line}")
-                print("🧠 Graph input started")
+                # print("🧠 Graph input started")
                 result = graph.invoke({
                     "log_line": log_line,
                     "llm": llm_instance,

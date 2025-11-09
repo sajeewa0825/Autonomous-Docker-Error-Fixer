@@ -65,6 +65,8 @@ def analyze_log_line(state):
 
         if status == "error":
             print(f"🚨 Detected error: {summary}")
+        else:
+            print(f"✅ Log OK: no issues detected.")
 
         return {"analysis": json.dumps({"status": status, "summary": summary}), "status": status}
 
