@@ -49,11 +49,6 @@ def llm_call(state):
         {{
           "command": "client.containers.get('{container_name}').restart()"
         }}
-
-        If no fix is required, respond with:
-        {{
-          "command": "NONE"
-        }}
         """
     )
 

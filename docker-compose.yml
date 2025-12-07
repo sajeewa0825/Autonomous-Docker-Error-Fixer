@@ -1,0 +1,19 @@
+services:
+  ai_app:
+    build: .
+    image: docker-error-fixer   # local image name created after build
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      MODEL_NAME: ${MODEL_NAME}
+      TEMPERATURE: ${TEMPERATURE}
+      MAX_TOKENS: ${MAX_TOKENS}
+      Top_K_Context: ${Top_K_Context}
+      CHAT_HISTORY_LIMIT: ${CHAT_HISTORY_LIMIT}
+      DOCKER_CONTAINER_NAME: ${DOCKER_CONTAINER_NAME}
