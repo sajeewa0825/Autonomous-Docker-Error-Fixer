@@ -35,22 +35,51 @@ def llm_call(state):
         log_summary = state.get("analysis", "")
 
     prompt = ChatPromptTemplate.from_template(
-        """
-        You are a Docker auto-repair AI agent.
-        Analyze the following Docker error and propose an executable fix.
+    """
+    You are a Docker auto-repair AI agent operating in a production environment.
 
-        Log line: {log_line}
+    Your decision process MUST follow this strict order:
 
-        Error Summary: {log_summary}
+    1. FIRST, check the provided RAG context for a matching error pattern.
+    - If a confident match exists, use ONLY the fix command from RAG and matching user knowledge.
+    - Do NOT invent new commands.
 
-        Container id: {container_name}
+    2. If RAG context is empty, ambiguous, or does NOT contain a fix:
+    - Optionally use web search to validate the error pattern.
+    - Use ONLY widely accepted Docker-safe recovery commands.
 
-        Respond ONLY in valid JSON format (no markdown, no extra text):
-        {{
-          "command": "client.containers.get('{container_name}').restart()"
-        }}
-        """
+    3. If neither RAG nor web search yields a reliable fix:
+    - Return a SAFE RECOMMENDATION command (non-destructive, reversible).
+    - Do NOT restart Docker daemon unless explicitly indicated.
+
+    4. NEVER hallucinate commands.
+    5. NEVER output explanations or markdown.
+    6. NEVER output multiple commands.
+    7. ALWAYS output valid JSON.
+
+    Inputs:
+    - Log line: {log_line}
+    - Error summary: {log_summary}
+    - Container id: {container_name}
+
+    Output format (JSON only):
+    {{
+    "command": "<single executable docker python sdk or shell command>"
+    }}
+
+    Examples of allowed commands:
+    - client.containers.get("{container_name}").restart()
+    - client.containers.get("{container_name}").kill(signal="SIGKILL")
+    - client.containers.prune()
+    - "docker system prune -f --volumes"
+
+    If no safe action is possible:
+    {{
+    "command": "NO_ACTION_RECOMMENDED"
+    }}
+    """
     )
+
 
     response = llm.invoke(prompt.format(
         log_line=log_line,

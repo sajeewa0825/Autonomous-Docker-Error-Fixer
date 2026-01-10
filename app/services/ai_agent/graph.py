@@ -9,12 +9,16 @@ from app.services.ai_agent.error_decision import is_error_log
 def build_agentic_rag_graph():
     graph = StateGraph(AgentState)
 
-    # Existing nodes
-    graph.add_node("agent", llm_call)
-    graph.add_node("tools", ToolNode(tools=tools))
-
     # New Docker log analyzer node
     graph.add_node("log_analyzer", analyze_log_line)
+
+    # Agent node that uses llm_call to fixes Docker issues
+    graph.add_node("agent", llm_call)
+
+    # Tool node for executing actions
+    graph.add_node("tools", ToolNode(tools=tools))
+
+
 
     # Flow:
     graph.set_entry_point("log_analyzer")
@@ -36,6 +40,8 @@ def build_agentic_rag_graph():
             "end": END,
         },
     )
+
+    # Tool node flows back to agent for further reasoning
     graph.add_edge("tools", "agent")
 
     return graph.compile()

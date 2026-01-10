@@ -6,6 +6,7 @@ from langgraph.graph.message import add_messages
 class AgentState(TypedDict):
     """Shared memory for agent conversation and runtime context."""
     
+    # all input/output messages
     messages: Annotated[Sequence[BaseMessage], add_messages]
     
     # Runtime context
