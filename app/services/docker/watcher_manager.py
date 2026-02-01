@@ -1,54 +1,55 @@
-from threading import Thread
+from threading import Thread, Event
 import docker
+from docker.errors import NotFound
 from sqlalchemy.orm import Session
-from docker.errors import NotFound, APIError
 from app.db.model.containers_model import Container
-from app.services.docker.container_watcher import watch_single_container
 
 docker_client = docker.from_env()
 
-# Keep track of running watchers
-running_watchers: dict[str, Thread] = {}
-
+# container_name -> {thread, stop_event}
+running_watchers: dict[str, dict] = {}
 
 def start_enabled_container_watchers(db: Session):
     containers = db.query(Container).filter(Container.enabled == 1).all()
 
     for container in containers:
-        name = container.name
+        start_watcher(container.name)
 
-        # Skip if already watching
-        if name in running_watchers:
-            continue
+def start_watcher(container_name: str):
+    if container_name in running_watchers:
+        return
 
-        # 🔍 Validate container exists in Docker
-        try:
-            docker_container = docker_client.containers.get(name)
+    try:
+        docker_client.containers.get(container_name)
+    except NotFound:
+        print(f"❌ Container not found: {container_name}")
+        return
 
-            # Optional: ensure container is running
-            if docker_container.status != "running":
-                print(f"⚠️ Container '{name}' exists but is not running. Skipped.")
-                continue
+    stop_event = Event()
 
-        except NotFound:
-            print(f"❌ Container '{name}' not found in Docker. DB entry ignored.")
-            continue
+    from app.services.docker.container_watcher import watch_single_container
 
-        except APIError as e:
-            print(f"❌ Docker API error for '{name}': {e}")
-            continue
+    thread = Thread(
+        target=watch_single_container,
+        args=(container_name, stop_event),
+        daemon=True
+    )
+    thread.start()
 
-        except Exception as e:
-            print(f"❌ Unexpected error for '{name}': {e}")
-            continue
+    running_watchers[container_name] = {
+        "thread": thread,
+        "stop_event": stop_event
+    }
 
-        # ✅ Start watcher thread ONLY after validation
-        thread = Thread(
-            target=watch_single_container,
-            args=(name,),
-            daemon=True
-        )
-        thread.start()
+    print(f"🧵 Watcher started: {container_name}")
 
-        running_watchers[name] = thread
-        print(f"🧵 Watching started for container: {name}")
+
+def stop_watcher(container_name: str):
+    watcher = running_watchers.get(container_name)
+    if not watcher:
+        return
+
+    watcher["stop_event"].set()
+    del running_watchers[container_name]
+
+    print(f"🛑 Watcher stopped: {container_name}")

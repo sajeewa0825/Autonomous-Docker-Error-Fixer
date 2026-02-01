@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.db.model.containers_model import Container
+from app.services.docker.watcher_manager import stop_watcher
 
 router = APIRouter()
 
@@ -25,6 +26,9 @@ def delete_container(
     db.delete(db_container)
     db.commit()
 
-    return {"message": f"Container '{name}' deleted successfully"}
+    # 🛑 Stop watcher first
+    stop_watcher(name)
+
+    return {"message": f"Container '{name}' deleted successfully and watcher stopped."}
 
 

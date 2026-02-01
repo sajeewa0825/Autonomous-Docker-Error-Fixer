@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.db.model.containers_model import Container
 from app.db.schema.container_schema import ContainerCreate, ContainerResponse
+from app.services.docker.watcher_manager import start_watcher
 
 router = APIRouter()
 
@@ -30,5 +31,8 @@ def add_container(
     db.add(new_container)
     db.commit()
     db.refresh(new_container)
+
+    if new_container.enabled == 1:
+        start_watcher(new_container.name)
 
     return new_container

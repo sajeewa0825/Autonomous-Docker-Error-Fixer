@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.db.model.containers_model import Container
 from app.db.schema.container_schema import  ContainerResponse , ContainerUpdate
+from app.services.docker.watcher_manager import stop_watcher, start_watcher
 
 router = APIRouter()
 
@@ -32,6 +33,12 @@ def update_container(
 
     db.commit()
     db.refresh(db_container)
+
+    # Manage watcher based on enabled status
+    if container.enabled == 1:
+        start_watcher(db_container.name)
+    else:
+        stop_watcher(db_container.name)
 
     return db_container
 
