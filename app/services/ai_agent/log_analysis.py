@@ -32,6 +32,7 @@ def safe_json_extract(text: str):
 
 def analyze_log_line(state):
     log_line = state["log_line"]
+    container_name = state["container_name"]
 
     prompt = ChatPromptTemplate.from_template("""
     You are a Docker log analysis AI.
@@ -64,12 +65,12 @@ def analyze_log_line(state):
             summary = summary or "Detected error keyword in log."
 
         if status == "error":
-            print(f"🚨 Detected error: {summary}")
+            print(f"[{container_name}] :🚨 Detected error: {summary}")
         else:
-            print(f"✅ Log OK: no issues detected.")
+            print(f"[{container_name}] :✅ Log OK: no issues detected.")
 
         return {"analysis": json.dumps({"status": status, "summary": summary}), "status": status}
 
     except Exception as e:
-        print(f"⚠️ Error analyzing (analyzer) log: {e}")
+        print(f"[{container_name}] :⚠️ Error analyzing (analyzer) log: {e}")
         return {"analysis": json.dumps({"status": "ok", "summary": ""}), "status": "ok"}

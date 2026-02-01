@@ -14,3 +14,4 @@ class AgentState(TypedDict):
     log_line: Optional[str]       # <-- current log line being analyzed
     analysis: Optional[str]       # <-- JSON result from log analysis
     response: Optional[str]       # <-- generated fix or summary
+    container_name: Optional[str] # <-- Docker container name being analyzed

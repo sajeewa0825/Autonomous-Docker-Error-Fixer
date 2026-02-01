@@ -24,9 +24,9 @@ llm_with_tools = llm.bind_tools(tools)
 def llm_call(state):
     llm = state["llm"]
     log_line = state["log_line"]
-    container_name = state.get("container_name")
+    container_name = state["container_name"]
 
-    print("continer_name: ", Settings.DOCKER_CONTAINER_NAME)
+    # print("continer_name: ", Settings.DOCKER_CONTAINER_NAME)
 
     try:
         analysis_data = json.loads(state.get("analysis", "{}"))
@@ -60,7 +60,7 @@ def llm_call(state):
     Inputs:
     - Log line: {log_line}
     - Error summary: {log_summary}
-    - Container id: {container_name}
+    - Container name: {container_name}
 
     Output format (JSON only):
     {{
@@ -93,10 +93,10 @@ def llm_call(state):
     try:
         parsed = json.loads(cleaned_output)
         command = parsed.get("command", "NONE")
-        print(f"🤖 Suggested fix command: {command}")
+        print(f"[{container_name}] : Suggested fix command: {command}")
         return {"response": command}
     except Exception as e:
-        print(f"⚠️ JSON parse failed: {e}\n🧩 Raw LLM Output was: {raw_output}")
+        print(f"[{container_name}]⚠️ JSON parse failed: {e}\n🧩 Raw LLM Output was: {raw_output}")
         return {"response": "NONE"}
     
 # The decision node
