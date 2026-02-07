@@ -1,18 +1,17 @@
-from typing import Dict, List, Callable
+from collections import defaultdict
+from fastapi import WebSocket
 
-# container_name -> list of callbacks
-listeners: Dict[str, List[Callable[[str], None]]] = {}
+listeners = defaultdict(set)
 
+def register_client(container_name: str, websocket: WebSocket):
+    listeners[container_name].add(websocket)
 
-def register_listener(container_name: str, callback: Callable[[str], None]):
-    listeners.setdefault(container_name, []).append(callback)
+def unregister_client(container_name: str, websocket: WebSocket):
+    listeners[container_name].discard(websocket)
 
-
-def unregister_listener(container_name: str, callback: Callable):
-    if container_name in listeners:
-        listeners[container_name].remove(callback)
-
-
-def broadcast_log(container_name: str, message: str):
-    for cb in listeners.get(container_name, []):
-        cb(message)
+async def broadcast_log(container_name: str, line: str):
+    for ws in list(listeners[container_name]):
+        try:
+            await ws.send_text(line)
+        except Exception:
+            listeners[container_name].discard(ws)

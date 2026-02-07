@@ -1,10 +1,12 @@
 import time
 import docker
+import asyncio
 from threading import Event
 from langchain_groq import ChatGroq
 
 from app.services.ai_agent.graph import build_agentic_rag_graph
 from app.core.loadenv import Settings
+from app.services.docker.log_broadcaster import broadcast_log
 
 docker_client = docker.from_env()
 
@@ -19,12 +21,12 @@ graph = build_agentic_rag_graph()
 
 def watch_single_container(container_name: str, stop_event: Event):
     """
-    Watch logs ONLY from watcher start time (no old logs)
+    Watch logs ONLY from watcher start time
+    + broadcast to WebSocket clients
     """
     try:
         container = docker_client.containers.get(container_name)
-
-        start_time = int(time.time())  # 🔑 CRITICAL FIX
+        start_time = int(time.time())
 
         print(f"🟢 Started watching container: {container_name}")
 
@@ -43,8 +45,12 @@ def watch_single_container(container_name: str, stop_event: Event):
             if not log_line:
                 continue
 
-            print(f"[{container_name}] {log_line}")
+            # 🔥 SEND TO UI
+            asyncio.run(
+                broadcast_log(container_name, log_line)
+            )
 
+            # 🧠 AI processing (optional)
             try:
                 graph.invoke({
                     "log_line": log_line,
