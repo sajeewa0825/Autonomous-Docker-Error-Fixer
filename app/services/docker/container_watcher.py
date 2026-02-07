@@ -1,10 +1,10 @@
 import time
 import docker
 from threading import Event
+from langchain_groq import ChatGroq
 
 from app.services.ai_agent.graph import build_agentic_rag_graph
 from app.core.loadenv import Settings
-from langchain_groq import ChatGroq
 
 docker_client = docker.from_env()
 
@@ -18,17 +18,20 @@ graph = build_agentic_rag_graph()
 
 
 def watch_single_container(container_name: str, stop_event: Event):
-    """Watch logs of ONE container until stop_event is set."""
+    """
+    Watch logs ONLY from watcher start time (no old logs)
+    """
     try:
         container = docker_client.containers.get(container_name)
-        print(f"🟢 Started Log Track: {container_name}")
 
-        since_time = int(time.time())
+        start_time = int(time.time())  # 🔑 CRITICAL FIX
+
+        print(f"🟢 Started watching container: {container_name}")
 
         logs = container.logs(
             stream=True,
             follow=True,
-            since=since_time
+            since=start_time
         )
 
         for line in logs:
@@ -36,7 +39,7 @@ def watch_single_container(container_name: str, stop_event: Event):
                 print(f"🛑 Stopped watching: {container_name}")
                 break
 
-            log_line = line.decode("utf-8").strip()
+            log_line = line.decode("utf-8", errors="ignore").strip()
             if not log_line:
                 continue
 

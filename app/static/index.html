@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Docker Container Manager</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: monospace;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+
+    header {
+      background: #020617;
+      padding: 12px;
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+    }
+
+    .layout {
+      display: flex;
+      height: calc(100vh - 50px);
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #020617;
+      border-right: 1px solid #334155;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    .container-item {
+      padding: 8px;
+      margin-bottom: 6px;
+      background: #020617;
+      border: 1px solid #334155;
+      cursor: pointer;
+    }
+
+    .container-item:hover {
+      background: #1e293b;
+    }
+
+    .log-area {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      background: #020617;
+    }
+
+    .log-box {
+      border: 1px solid #334155;
+      margin-bottom: 12px;
+    }
+
+    .log-header {
+      background: #020617;
+      padding: 6px;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+    }
+
+    .log-content {
+      height: 200px;
+      overflow-y: auto;
+      padding: 6px;
+      white-space: pre-wrap;
+      background: #020617;
+    }
+
+    button {
+      background: #1e293b;
+      color: white;
+      border: 1px solid #334155;
+      cursor: pointer;
+      margin-left: 5px;
+    }
+
+    button:hover {
+      background: #334155;
+    }
+
+    input {
+      width: 100%;
+      padding: 5px;
+      margin-top: 5px;
+      background: #020617;
+      color: white;
+      border: 1px solid #334155;
+    }
+  </style>
+</head>
+
+<body>
+<header>🐳 Docker Container Manager Dashboard</header>
+
+<div class="layout">
+  <div class="sidebar">
+    <h3>Containers</h3>
+    <div id="containerList"></div>
+
+    <h4>Add Container</h4>
+    <input id="containerName" placeholder="container name" />
+    <button onclick="addContainer()">Add</button>
+  </div>
+
+  <div class="log-area" id="logArea"></div>
+</div>
+
+<script>
+  const API = "http://localhost:8000";
+  const sockets = {};
+
+  async function loadContainers() {
+    const res = await fetch(`${API}/container/list?enabled=1`);
+    const containers = await res.json();
+
+    document.getElementById("containerList").innerHTML = "";
+    document.getElementById("logArea").innerHTML = "";
+
+    containers.forEach(c => {
+      addContainerUI(c.name);
+      connectLogStream(c.name);
+    });
+  }
+
+  function addContainerUI(name) {
+    const list = document.getElementById("containerList");
+
+    const div = document.createElement("div");
+    div.className = "container-item";
+    div.innerText = name;
+    list.appendChild(div);
+
+    const logBox = document.createElement("div");
+    logBox.className = "log-box";
+    logBox.id = `log-${name}`;
+
+    logBox.innerHTML = `
+      <div class="log-header">
+        <span>${name}</span>
+        <span>
+          <button onclick="disableContainer('${name}')">Disable</button>
+          <button onclick="deleteContainer('${name}')">Delete</button>
+        </span>
+      </div>
+      <div class="log-content" id="logs-${name}"></div>
+    `;
+
+    document.getElementById("logArea").appendChild(logBox);
+  }
+
+  function connectLogStream(name) {
+    const ws = new WebSocket(`ws://localhost:8000/ws/logs/${name}`);
+    sockets[name] = ws;
+
+    ws.onmessage = (event) => {
+      const logBox = document.getElementById(`logs-${name}`);
+      logBox.textContent += event.data + "\n";
+      logBox.scrollTop = logBox.scrollHeight;
+    };
+
+    ws.onclose = () => {
+      console.log(`Log stream closed for ${name}`);
+    };
+  }
+
+  async function addContainer() {
+    const name = document.getElementById("containerName").value;
+    if (!name) return;
+
+    await fetch(`${API}/container/add`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, enabled: 1 })
+    });
+
+    loadContainers();
+  }
+
+  async function deleteContainer(name) {
+    await fetch(`${API}/container/${name}`, { method: "DELETE" });
+    if (sockets[name]) sockets[name].close();
+    loadContainers();
+  }
+
+  async function disableContainer(name) {
+    await fetch(`${API}/container/${name}/disable`, { method: "PATCH" });
+    if (sockets[name]) sockets[name].close();
+    loadContainers();
+  }
+
+  loadContainers();
+</script>
+</body>
+</html>
