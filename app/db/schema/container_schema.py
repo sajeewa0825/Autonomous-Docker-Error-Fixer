@@ -6,7 +6,6 @@ class ContainerCreate(BaseModel):
     enabled: int = 1
 
 class ContainerUpdate(BaseModel):
-    name: Optional[str] = None
     enabled: Optional[int] = None
 
 class ContainerResponse(BaseModel):

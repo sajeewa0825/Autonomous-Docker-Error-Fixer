@@ -1,333 +1,789 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Docker Container Manager</title>
 
 <style>
-:root {
-  --primary: #2563eb;
-  --danger: #dc2626;
-  --gray: #64748b;
-  --bg: #f8fafc;
-  --card: #ffffff;
-  --border: #e5e7eb;
-  --success: #16a34a;
-  --warning: #f59e0b;
+:root{
+  --bg:#f6f8fc;
+  --card:#ffffff;
+  --text:#0f172a;
+  --muted:#64748b;
+  --border:#e5e7eb;
+  --primary:#2563eb;
+  --primary-2:#1d4ed8;
+  --danger:#dc2626;
+  --success:#16a34a;
+  --shadow: 0 10px 25px rgba(15,23,42,.08);
+  --radius: 14px;
 }
 
-body {
-  margin: 0;
-  font-family: Inter, system-ui, sans-serif;
-  background: var(--bg);
-  color: #0f172a;
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background:var(--bg);
+  color:var(--text);
 }
 
-header {
-  background: var(--primary);
-  color: white;
-  padding: 14px;
-  font-size: 20px;
-  text-align: center;
+header{
+  position:sticky;
+  top:0;
+  z-index:10;
+  background: linear-gradient(90deg, #1d4ed8, #4f46e5);
+  color:#fff;
+  padding: 14px 18px;
+  box-shadow: 0 10px 25px rgba(37,99,235,.22);
 }
 
-.layout {
-  display: flex;
-  height: calc(100vh - 56px);
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
 }
 
-/* ---------- Sidebar ---------- */
-.sidebar {
-  width: 300px;
-  background: var(--card);
-  border-right: 1px solid var(--border);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
 }
 
-.sidebar h3 {
-  margin: 6px 0;
+.logo{
+  width:38px;height:38px;border-radius:14px;
+  display:grid;place-items:center;
+  background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.25);
 }
 
-.search {
-  padding: 8px;
-  margin-bottom: 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+.brand-text{
+  display:flex;
+  flex-direction:column;
+  line-height:1.05;
 }
 
-.container-list {
-  flex: 1;
-  overflow-y: auto;
+.brand-text .title{
+  font-weight: 900;
+  letter-spacing:.2px;
+  font-size: 16px;
 }
 
-.container-item {
-  padding: 10px;
-  border-radius: 6px;
-  margin-bottom: 6px;
-  background: #f1f5f9;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.container-item:hover {
-  background: #e2e8f0;
-}
-
-.badge {
-  font-size: 11px;
-  padding: 3px 6px;
-  border-radius: 999px;
-  color: white;
-}
-
-.badge.enabled { background: var(--success); }
-.badge.disabled { background: var(--gray); }
-.badge.error { background: var(--danger); }
-
-/* ---------- Main ---------- */
-.log-area {
-  flex: 1;
-  padding: 12px;
-  overflow-y: auto;
-}
-
-.log-box {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  margin-bottom: 14px;
-  background: var(--card);
-}
-
-.log-header {
-  padding: 10px;
-  background: #f1f5f9;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.log-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.log-content {
-  height: 240px;
-  overflow-y: auto;
-  padding: 10px;
-  font-family: monospace;
-  font-size: 13px;
-  white-space: pre-wrap;
-}
-
-/* ---------- Buttons ---------- */
-button {
-  border: none;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: white;
-}
-
-button.primary { background: var(--primary); }
-button.gray { background: var(--gray); }
-button.danger { background: var(--danger); }
-
-button.small {
-  padding: 4px 8px;
+.brand-text .subtitle{
+  font-weight: 650;
+  opacity:.88;
   font-size: 12px;
 }
 
-/* ---------- Toast ---------- */
-.toast {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #0f172a;
-  color: white;
-  padding: 10px 14px;
-  border-radius: 8px;
-  opacity: 0;
-  transition: opacity .3s;
+.header-stats{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  justify-content:flex-end;
 }
-.toast.show { opacity: 1; }
 
-/* ---------- Modal ---------- */
-.modal {
+.pill{
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.22);
+  font-size: 12px;
+  font-weight: 750;
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
+.pill .dot{
+  width:7px;height:7px;border-radius:999px;background:#fff;opacity:.9;
+}
+
+.layout{
+  display:flex;
+  height: calc(100vh - 66px);
+}
+
+.sidebar{
+  width: 360px;
+  padding: 14px;
+  border-right:1px solid var(--border);
+  background: rgba(255,255,255,.7);
+  backdrop-filter: blur(6px);
+}
+
+.panel{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+}
+
+.panel .panel-header{
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.panel .panel-header h3{
+  margin:0;
+  font-size:14px;
+  letter-spacing:.2px;
+}
+
+.panel .panel-body{
+  padding:12px 14px;
+}
+
+.search-row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.input{
+  width:100%;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius: 12px;
+  outline:none;
+  font-size:13px;
+  background:#fff;
+}
+.input:focus{
+  border-color: rgba(37,99,235,.5);
+  box-shadow: 0 0 0 4px rgba(37,99,235,.12);
+}
+
+.btn{
+  border:none;
+  cursor:pointer;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 750;
+  font-size: 13px;
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  justify-content:center;
+  transition: transform .04s ease, background .15s ease, opacity .15s ease;
+  user-select:none;
+}
+.btn:active{ transform: translateY(1px); }
+.btn.primary{ background:var(--primary); color:#fff; }
+.btn.primary:hover{ background:var(--primary-2); }
+.btn.ghost{ background:#eef2ff; color:#1e293b; }
+.btn.ghost:hover{ background:#e0e7ff; }
+.btn.danger{ background:var(--danger); color:#fff; }
+.btn.danger:hover{ opacity:.92; }
+.btn.gray{ background:#94a3b8; color:#0f172a; }
+.btn.gray:hover{ opacity:.95; }
+.btn.small{ padding:8px 10px; border-radius: 10px; font-size:12px; }
+
+.badge{
+  font-size:11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 850;
+  display:inline-flex;
+  gap:6px;
+  align-items:center;
+}
+.badge.enabled{ background: rgba(22,163,74,.12); color: var(--success); }
+.badge.disabled{ background: rgba(100,116,139,.12); color: var(--muted); }
+.badge.error{ background: rgba(220,38,38,.12); color: var(--danger); }
+
+.dot2{
+  width:7px;height:7px;border-radius:999px;display:inline-block;
+}
+.dot2.enabled{ background: var(--success); }
+.dot2.disabled{ background: var(--muted); }
+.dot2.error{ background: var(--danger); }
+
+.container-list{
+  max-height: calc(100vh - 248px);
+  overflow:auto;
+  padding: 6px 6px 10px 6px;
+}
+
+.item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding: 10px 10px;
+  margin: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background:#fff;
+  cursor:pointer;
+  transition: box-shadow .15s ease, transform .06s ease;
+}
+.item:hover{
+  box-shadow: 0 10px 20px rgba(15,23,42,.06);
+}
+.item:active{ transform: translateY(1px); }
+
+.item .left{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:0;
+}
+.item .name{
+  font-weight: 900;
+  font-size: 13px;
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 210px;
+}
+.item .meta{
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.main{
+  flex:1;
+  padding: 14px;
+  overflow:auto;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.log-box{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+}
+
+.log-head{
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+  background: #fbfdff;
+}
+
+.log-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width: 0;
+}
+.log-title .name{
+  font-weight: 950;
+  font-size: 14px;
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 520px;
+}
+
+.log-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap: wrap;
+  justify-content:flex-end;
+}
+
+.log-content{
+  height: 260px;
+  overflow:auto;
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  background: #0b1220;
+  color: #e5e7eb;
+  white-space: pre-wrap;
+}
+
+.log-content .hint{
+  color:#94a3b8;
+}
+
+.footer-note{
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* Toast */
+.toast{
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #0b1220;
+  color: #e5e7eb;
+  box-shadow: 0 12px 25px rgba(0,0,0,.18);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity .22s ease, transform .22s ease;
+  font-size: 13px;
+  max-width: 340px;
+}
+.toast.show{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Modal */
+.modal{
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.4);
-  display: none;
-  align-items: center;
-  justify-content: center;
+  background: rgba(15,23,42,.38);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding: 18px;
+  z-index: 100;
 }
-
-.modal-content {
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  width: 320px;
+.modal .card{
+  width: 420px;
+  max-width: 92vw;
+  background: var(--card);
+  border:1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  overflow:hidden;
 }
-
-.modal-content input {
-  width: 100%;
-  padding: 8px;
+.modal .card .top{
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.modal h3{ margin:0; font-size: 14px; }
+.modal .card .body{ padding: 14px 16px; }
+.modal .row{
+  display:flex;
+  gap:10px;
   margin-top: 10px;
+}
+.modal .row .btn{ flex:1; }
+.helper{
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+  line-height: 1.4;
+}
+.kbd{
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  background: #f1f5f9;
+  border:1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+@media (max-width: 980px){
+  .layout{ flex-direction: column; }
+  .sidebar{ width: 100%; border-right: none; border-bottom:1px solid var(--border); }
+  .container-list{ max-height: 240px; }
 }
 </style>
 </head>
 
 <body>
-<header>🐳 Docker Container Manager</header>
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">🐳</div>
+      <div class="brand-text">
+        <div class="title">Container Manager</div>
+        <div class="subtitle">Dashboard</div>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="pill"><span class="dot"></span><span id="hdrEnabled">0 enabled</span></div>
+      <div class="pill"><span class="dot"></span><span id="hdrTotal">0 total</span></div>
+      <button class="btn ghost small" onclick="refresh()">↻ Refresh</button>
+      <button class="btn primary small" onclick="openAddModal()">➕ Add</button>
+    </div>
+  </div>
+</header>
 
 <div class="layout">
   <div class="sidebar">
-    <h3>Containers</h3>
-    <input class="search" placeholder="Search..." oninput="filterContainers(this.value)">
-    <div class="container-list" id="containerList"></div>
-    <button class="primary" onclick="openModal()">➕ Add Container</button>
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Containers</h3>
+        <span class="kbd">Search</span>
+      </div>
+
+      <div class="panel-body">
+        <div class="search-row">
+          <input id="search" class="input" placeholder="Search containers..." oninput="render()" />
+          <button class="btn ghost" onclick="refresh()">↻</button>
+        </div>
+      </div>
+
+      <div class="container-list" id="containerList"></div>
+      <div class="footer-note" id="counts">Loading...</div>
+    </div>
   </div>
 
-  <div class="log-area" id="logArea"></div>
-</div>
-
-<!-- Modal -->
-<div class="modal" id="modal">
-  <div class="modal-content">
-    <h3>Add Container</h3>
-    <input id="containerName" placeholder="Container name">
-    <br><br>
-    <button class="primary" onclick="addContainer()">Add</button>
-    <button class="gray" onclick="closeModal()">Cancel</button>
+  <div class="main">
+    <div class="grid" id="logGrid"></div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<!-- Add Modal -->
+<div class="modal" id="addModal">
+  <div class="card">
+    <div class="top">
+      <h3>Add container</h3>
+      <button class="btn ghost small" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="body">
+      <label style="font-size:12px;color:var(--muted);font-weight:800">Container name</label>
+      <input id="newContainerName" class="input" placeholder="e.g. log_2" />
+      <div class="helper">
+        Tip: the name must match an existing Docker container name.
+      </div>
+      <div class="row">
+        <button class="btn primary" onclick="addContainer()">Add & Enable</button>
+        <button class="btn gray" onclick="closeAddModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal" id="confirmModal">
+  <div class="card">
+    <div class="top">
+      <h3 id="confirmTitle">Confirm</h3>
+      <button class="btn ghost small" onclick="closeConfirm()">✕</button>
+    </div>
+    <div class="body">
+      <div id="confirmText" style="font-size:13px;color:var(--text);line-height:1.5"></div>
+      <div class="row">
+        <button class="btn danger" id="confirmYes">Yes</button>
+        <button class="btn gray" onclick="closeConfirm()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = "http://localhost:8000";
+
+// name -> WebSocket
 const sockets = {};
+// name -> 'ok' | 'error'
+const socketState = {};
+// name -> string
+const logs = {};
+// name -> boolean (true when we intentionally close it)
+const intentionalClose = {};
+
 let containers = [];
 
-function toast(msg) {
-  const t = document.getElementById("toast");
-  t.innerText = msg;
+const $ = (id) => document.getElementById(id);
+
+function showToast(message){
+  const t = $("toast");
+  t.textContent = message;
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 2500);
+  setTimeout(() => t.classList.remove("show"), 2600);
 }
 
-async function loadContainers() {
-  const res = await fetch(`${API}/container/list`);
-  containers = await res.json();
+function openAddModal(){
+  $("addModal").style.display = "flex";
+  $("newContainerName").value = "";
+  setTimeout(()=> $("newContainerName").focus(), 50);
+}
+function closeAddModal(){ $("addModal").style.display = "none"; }
+
+function openConfirm(title, text, onYes){
+  $("confirmTitle").textContent = title;
+  $("confirmText").textContent = text;
+  $("confirmYes").onclick = () => { closeConfirm(); onYes(); };
+  $("confirmModal").style.display = "flex";
+}
+function closeConfirm(){ $("confirmModal").style.display = "none"; }
+
+async function apiFetch(url, options={}){
+  try{
+    const res = await fetch(url, options);
+    if(!res.ok){
+      const txt = await res.text().catch(()=> "");
+      throw new Error(`${res.status} ${res.statusText}${txt ? " - " + txt : ""}`);
+    }
+    const ct = res.headers.get("content-type") || "";
+    if(ct.includes("application/json")) return await res.json();
+    return await res.text();
+  }catch(e){
+    showToast(`⚠️ ${e.message}`);
+    throw e;
+  }
+}
+
+async function refresh(){
+  // IMPORTANT: intentional close so we do not mark ERROR
+  Object.keys(sockets).forEach(name => disconnectStream(name, true));
+
+  containers = await apiFetch(`${API}/container/list`);
   render();
 }
 
-function render(filter="") {
-  containerList.innerHTML = "";
-  logArea.innerHTML = "";
+function render(){
+  const filter = ($("search").value || "").toLowerCase().trim();
+  const list = $("containerList");
+  const grid = $("logGrid");
+  list.innerHTML = "";
+  grid.innerHTML = "";
 
-  containers
-    .filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
-    .forEach(c => {
-      renderContainerItem(c);
-      renderLogBox(c);
-      if (c.enabled) connectLogStream(c.name);
-    });
+  const filtered = containers.filter(c => c.name.toLowerCase().includes(filter));
+
+  const enabledCount = containers.filter(c=>c.enabled===1 || c.enabled===true).length;
+  const totalCount = containers.length;
+  $("counts").textContent = `${enabledCount} enabled • ${totalCount} total`;
+  $("hdrEnabled").textContent = `${enabledCount} enabled`;
+  $("hdrTotal").textContent = `${totalCount} total`;
+
+  filtered.forEach(c => {
+    renderContainerRow(c);
+    renderLogCard(c);
+
+    if (c.enabled === 1 || c.enabled === true) connectStream(c.name);
+    else disconnectStream(c.name, true);
+  });
 }
 
-function renderContainerItem(c) {
-  const div = document.createElement("div");
-  div.className = "container-item";
-  div.innerHTML = `
-    <span>${c.name}</span>
-    <span class="badge ${c.enabled ? "enabled":"disabled"}">
-      ${c.enabled ? "ENABLED":"DISABLED"}
-    </span>`;
-  div.onclick = () => document.getElementById(`box-${c.name}`).scrollIntoView();
-  containerList.appendChild(div);
+function statusBadge(c){
+  const enabled = (c.enabled === 1 || c.enabled === true);
+  const state = socketState[c.name] || "ok";
+  if (!enabled) return `<span class="badge disabled"><span class="dot2 disabled"></span>DISABLED</span>`;
+  if (state === "error") return `<span class="badge error"><span class="dot2 error"></span>ERROR</span>`;
+  return `<span class="badge enabled"><span class="dot2 enabled"></span>ENABLED</span>`;
 }
 
-function renderLogBox(c) {
-  const box = document.createElement("div");
-  box.className = "log-box";
-  box.id = `box-${c.name}`;
-  box.innerHTML = `
-    <div class="log-header">
+function renderContainerRow(c){
+  const el = document.createElement("div");
+  el.className = "item";
+  el.innerHTML = `
+    <div class="left">
+      <div class="name">${escapeHtml(c.name)}</div>
+      <div class="meta">${(c.enabled===1||c.enabled===true) ? "Streaming logs" : "Not streaming"}</div>
+    </div>
+    ${statusBadge(c)}
+  `;
+  el.onclick = () => $("box-"+c.name)?.scrollIntoView({behavior:"smooth", block:"start"});
+  $("containerList").appendChild(el);
+}
+
+function renderLogCard(c){
+  const enabled = (c.enabled === 1 || c.enabled === true);
+  const hasLogs = logs[c.name] && logs[c.name].length > 0;
+
+  const card = document.createElement("div");
+  card.className = "log-box";
+  card.id = "box-" + c.name;
+
+  card.innerHTML = `
+    <div class="log-head">
       <div class="log-title">
-        <strong>${c.name}</strong>
-        <span class="badge ${c.enabled ? "enabled":"disabled"}">
-          ${c.enabled ? "ENABLED":"DISABLED"}
-        </span>
+        <div class="name">${escapeHtml(c.name)}</div>
+        <div id="badge-${cssSafe(c.name)}">${statusBadge(c)}</div>
       </div>
-      <div>
-        ${c.enabled ? `<button class="gray small" onclick="disable(${c.id})">Disable</button>` : ""}
-        <button class="danger small" onclick="remove('${c.name}')">Delete</button>
+
+      <div class="log-actions">
+        ${enabled
+          ? `<button class="btn gray small" onclick="toggleEnabled('${escapeAttr(c.name)}', false)">Disable</button>`
+          : `<button class="btn primary small" onclick="toggleEnabled('${escapeAttr(c.name)}', true)">Enable</button>`
+        }
+        <button class="btn ghost small" onclick="clearLogs('${escapeAttr(c.name)}')">🧹 Clear</button>
+        <button class="btn danger small" onclick="confirmDelete('${escapeAttr(c.name)}')">Delete</button>
       </div>
     </div>
-    <div class="log-content" id="logs-${c.name}"></div>`;
-  logArea.appendChild(box);
+
+    <div class="log-content" id="logs-${cssSafe(c.name)}">
+      ${hasLogs ? escapeHtml(logs[c.name]) : `<span class="hint">No logs yet. Enable the container to start streaming.</span>`}
+    </div>
+
+    <div class="footer-note">
+      <span class="kbd">PATCH</span> /container/update/{container_name} • <span class="kbd">WS</span> /ws/logs/{container_name}
+    </div>
+  `;
+  $("logGrid").appendChild(card);
 }
 
-function connectLogStream(name) {
+function updateBadges(name){
+  const c = containers.find(x => x.name === name);
+  if (!c) return;
+  const badgeEl = $("badge-"+cssSafe(name));
+  if (badgeEl) badgeEl.innerHTML = statusBadge(c);
+}
+
+function connectStream(name){
   if (sockets[name]) return;
-  const ws = new WebSocket(`ws://localhost:8000/ws/logs/${name}`);
+
+  intentionalClose[name] = false;
+  socketState[name] = "ok";
+
+  const ws = new WebSocket(`ws://localhost:8000/ws/logs/${encodeURIComponent(name)}`);
   sockets[name] = ws;
 
-  ws.onmessage = e => {
-    const el = document.getElementById(`logs-${name}`);
+  ws.onopen = () => {
+    socketState[name] = "ok";
+    updateBadges(name);
+  };
+
+  ws.onmessage = (e) => {
+    const line = e.data ?? "";
+    logs[name] = (logs[name] || "") + line + "\n";
+
+    const parts = logs[name].split("\n");
+    if (parts.length > 5000) logs[name] = parts.slice(-5000).join("\n");
+
+    const el = $("logs-" + cssSafe(name));
     if (el) {
-      el.textContent += e.data + "\n";
+      el.textContent = logs[name];
       el.scrollTop = el.scrollHeight;
     }
   };
 
-  ws.onerror = () => toast(`Log error: ${name}`);
+  ws.onerror = () => {
+    socketState[name] = "error";
+    updateBadges(name);
+    showToast(`⚠️ Log stream error for ${name}`);
+  };
+
+  ws.onclose = () => {
+    delete sockets[name];
+
+    // ✅ Only mark ERROR if close was NOT intentional
+    if (!intentionalClose[name]) {
+      const c = containers.find(x => x.name === name);
+      const enabled = c && (c.enabled === 1 || c.enabled === true);
+      if (enabled) socketState[name] = "error";
+    } else {
+      socketState[name] = "ok";
+    }
+
+    updateBadges(name);
+  };
 }
 
-async function addContainer() {
-  const name = containerName.value;
-  if (!name) return;
+function disconnectStream(name, intentional=false){
+  intentionalClose[name] = intentional;
 
-  await fetch(`${API}/container/add`, {
+  if (sockets[name]) {
+    try { sockets[name].close(); } catch {}
+    delete sockets[name];
+  }
+
+  // If intentional, don't show error
+  if (intentional) socketState[name] = "ok";
+  updateBadges(name);
+}
+
+async function addContainer(){
+  const name = $("newContainerName").value.trim();
+  if (!name) { showToast("⚠️ Please enter a container name"); return; }
+
+  await apiFetch(`${API}/container/add`, {
     method: "POST",
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify({ name, enabled: 1 })
   });
 
-  closeModal();
-  toast("Container added");
-  loadContainers();
+  closeAddModal();
+  showToast(`✅ Added & enabled: ${name}`);
+
+  // refresh will reconnect cleanly (without false error)
+  await refresh();
 }
 
-async function disable(id) {
-  if (!confirm("Disable this container?")) return;
-  await fetch(`${API}/container/update/${id}`, {
-    method:"PATCH",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({ enabled:0 })
-  });
-  toast("Container disabled");
-  loadContainers();
+function confirmDelete(name){
+  openConfirm(
+    "Delete container",
+    `Delete '${name}' from the database? This will stop streaming and remove it from the dashboard.`,
+    async () => {
+      // stop stream intentionally so no false error
+      disconnectStream(name, true);
+      delete logs[name];
+
+      await apiFetch(`${API}/container/delete/${encodeURIComponent(name)}`, { method: "DELETE" });
+      showToast(`🗑 Deleted: ${name}`);
+      await refresh();
+    }
+  );
 }
 
-async function remove(name) {
-  if (!confirm("Delete this container?")) return;
-  await fetch(`${API}/container/delete/${name}`, { method:"DELETE" });
-  sockets[name]?.close();
-  toast("Container deleted");
-  loadContainers();
+function toggleEnabled(name, shouldEnable){
+  const action = shouldEnable ? "Enable" : "Disable";
+  const enabledValue = shouldEnable ? 1 : 0;
+
+  openConfirm(
+    `${action} container`,
+    `${action} '${name}'?`,
+    async () => {
+      await apiFetch(`${API}/container/update/${encodeURIComponent(name)}`, {
+        method: "PATCH",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ enabled: enabledValue })
+      });
+
+      const idx = containers.findIndex(c => c.name === name);
+      if (idx >= 0) containers[idx].enabled = enabledValue;
+
+      if (shouldEnable) {
+        showToast(`🟢 Enabled: ${name}`);
+        connectStream(name);
+      } else {
+        showToast(`⛔ Disabled: ${name}`);
+        disconnectStream(name, true);
+      }
+
+      render();
+    }
+  );
 }
 
-function filterContainers(v){ render(v); }
-function openModal(){ modal.style.display="flex"; }
-function closeModal(){ modal.style.display="none"; }
+function clearLogs(name){
+  logs[name] = "";
+  const el = $("logs-" + cssSafe(name));
+  if (el) el.innerHTML = `<span class="hint">Logs cleared. Waiting for new logs...</span>`;
+  showToast(`🧹 Cleared logs: ${name}`);
+}
 
-loadContainers();
+// Helpers
+function cssSafe(s){ return s.replace(/[^a-zA-Z0-9_-]/g, "_"); }
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+function escapeAttr(str){ return String(str).replaceAll("'", "\\'"); }
+
+// Initial
+refresh();
 </script>
 </body>
 </html>
