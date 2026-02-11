@@ -487,7 +487,28 @@ header{
 </div>
 
 <script>
-const API = "http://localhost:8000";
+/**
+ * ✅ API/WS base URL loader (NO hardcode)
+ *
+ * Priority:
+ *  1) window.__APP_CONFIG__.apiBaseUrl (injected by FastAPI from env)
+ *  2) <meta name="api-base" content="..."> (optional fallback)
+ *  3) window.location.origin (same host serving this HTML)
+ *
+ * WS base derived from API base (http->ws, https->wss)
+ */
+const __cfg = window.__APP_CONFIG__ || {};
+const __meta = document.querySelector('meta[name="api-base"]');
+
+const API = (String(__cfg.apiBaseUrl || "").trim())
+  ? String(__cfg.apiBaseUrl).replace(/\/+$/, "")
+  : (__meta && String(__meta.content || "").trim())
+    ? String(__meta.content).replace(/\/+$/, "")
+    : window.location.origin;
+
+const WS_BASE = API.startsWith("https://")
+  ? API.replace("https://", "wss://")
+  : API.replace("http://", "ws://");
 
 // name -> WebSocket
 const sockets = {};
@@ -643,7 +664,7 @@ function connectStream(name){
   intentionalClose[name] = false;
   socketState[name] = "ok";
 
-  const ws = new WebSocket(`ws://localhost:8000/ws/logs/${encodeURIComponent(name)}`);
+  const ws = new WebSocket(`${WS_BASE}/ws/logs/${encodeURIComponent(name)}`);
   sockets[name] = ws;
 
   ws.onopen = () => {
