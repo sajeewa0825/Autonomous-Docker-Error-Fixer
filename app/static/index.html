@@ -185,6 +185,13 @@ header{
 .btn.gray:hover{ opacity:.95; }
 .btn.small{ padding:8px 10px; border-radius: 10px; font-size:12px; }
 
+/* ✅ keep design, just disable visual */
+.btn[disabled]{
+  opacity:.55;
+  cursor:not-allowed;
+  transform:none !important;
+}
+
 .badge{
   font-size:11px;
   padding: 4px 8px;
@@ -394,6 +401,17 @@ header{
   border-radius: 8px;
 }
 
+/* tiny info block (same design language) */
+.info{
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  background: #fbfdff;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.info b{ color: var(--text); }
+
 @media (max-width: 980px){
   .layout{ flex-direction: column; }
   .sidebar{ width: 100%; border-right: none; border-bottom:1px solid var(--border); }
@@ -489,35 +507,27 @@ header{
 <script>
 /**
  * ✅ API/WS base URL loader (NO hardcode)
- *
- * Priority:
- *  1) window.__APP_CONFIG__.apiBaseUrl (injected by FastAPI from env)
- *  2) <meta name="api-base" content="..."> (optional fallback)
- *  3) window.location.origin (same host serving this HTML)
- *
- * WS base derived from API base (http->ws, https->wss)
  */
 const __cfg = window.__APP_CONFIG__ || {};
-const __meta = document.querySelector('meta[name="api-base"]');
 
 const API = (String(__cfg.apiBaseUrl || "").trim())
   ? String(__cfg.apiBaseUrl).replace(/\/+$/, "")
-  : (__meta && String(__meta.content || "").trim())
-    ? String(__meta.content).replace(/\/+$/, "")
-    : window.location.origin;
+  : window.location.origin;
 
 const WS_BASE = API.startsWith("https://")
   ? API.replace("https://", "wss://")
   : API.replace("http://", "ws://");
 
-// name -> WebSocket
+// sockets
 const sockets = {};
-// name -> 'ok' | 'error'
 const socketState = {};
-// name -> string
 const logs = {};
-// name -> boolean (true when we intentionally close it)
 const intentionalClose = {};
+
+// per container last AI state
+const aiState = {};
+// ✅ prevent double-click spam per action id
+const actionInFlight = {}; // action_id -> true
 
 let containers = [];
 
@@ -562,9 +572,7 @@ async function apiFetch(url, options={}){
 }
 
 async function refresh(){
-  // IMPORTANT: intentional close so we do not mark ERROR
   Object.keys(sockets).forEach(name => disconnectStream(name, true));
-
   containers = await apiFetch(`${API}/container/list`);
   render();
 }
@@ -619,9 +627,17 @@ function renderLogCard(c){
   const enabled = (c.enabled === 1 || c.enabled === true);
   const hasLogs = logs[c.name] && logs[c.name].length > 0;
 
+  const a = aiState[c.name] || {};
+  const analysis = a.analysis || null;
+  const suggestion = a.suggestion || null;
+  const approval = a.approval || null;
+  const actionResult = a.actionResult || null;
+
   const card = document.createElement("div");
   card.className = "log-box";
   card.id = "box-" + c.name;
+
+  const infoBlock = buildInfoBlock(c.name, analysis, suggestion, approval, actionResult);
 
   card.innerHTML = `
     <div class="log-head">
@@ -640,6 +656,8 @@ function renderLogCard(c){
       </div>
     </div>
 
+    ${infoBlock}
+
     <div class="log-content" id="logs-${cssSafe(c.name)}">
       ${hasLogs ? escapeHtml(logs[c.name]) : `<span class="hint">No logs yet. Enable the container to start streaming.</span>`}
     </div>
@@ -649,6 +667,54 @@ function renderLogCard(c){
     </div>
   `;
   $("logGrid").appendChild(card);
+}
+
+function buildInfoBlock(containerName, analysis, suggestion, approval, actionResult){
+  let html = `<div class="info">`;
+
+  if (analysis){
+    const st = (analysis.status || "").toUpperCase();
+    const conf = (analysis.confidence != null) ? Number(analysis.confidence).toFixed(2) : "-";
+    html += `<div><b>Analysis:</b> ${escapeHtml(st)} (conf ${conf}) — ${escapeHtml(analysis.summary || "")}</div>`;
+  } else {
+    html += `<div><b>Analysis:</b> —</div>`;
+  }
+
+  if (suggestion){
+    const sconf = (suggestion.confidence != null) ? Number(suggestion.confidence).toFixed(2) : "-";
+    html += `<div style="margin-top:6px"><b>Suggestion:</b> ${escapeHtml(suggestion.command || "")} (conf ${sconf})</div>`;
+    if (suggestion.reason) html += `<div><b>Reason:</b> ${escapeHtml(suggestion.reason)}</div>`;
+    if (suggestion.source) html += `<div><b>Source:</b> ${escapeHtml(suggestion.source)}</div>`;
+  } else {
+    html += `<div style="margin-top:6px"><b>Suggestion:</b> —</div>`;
+  }
+
+  // ✅ Approval block with disable + executing state
+  if (approval && approval.action_id){
+    const thr = (approval.threshold != null) ? Number(approval.threshold).toFixed(2) : "-";
+    const c = (approval.confidence != null) ? Number(approval.confidence).toFixed(2) : "-";
+    const executing = approval.status === "executing";
+    const disabledAttr = executing ? "disabled" : "";
+    const label = executing ? "⏳ Executing..." : "✅ Approve & Execute";
+
+    html += `<div style="margin-top:10px"><b>Approval required</b> (conf ${c} / threshold ${thr})</div>`;
+    html += `<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn primary small" ${disabledAttr} onclick="approveAction('${escapeAttr(containerName)}')">${label}</button>
+        <button class="btn danger small" ${disabledAttr} onclick="denyAction('${escapeAttr(containerName)}')">⛔ Deny</button>
+      </div>`;
+  }
+
+  if (actionResult){
+    html += `<div style="margin-top:10px"><b>Last action:</b> ${escapeHtml(actionResult.status || "")} — ${escapeHtml(actionResult.message || "")}</div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function rerenderCard(name){
+  // simplest consistent update
+  render();
 }
 
 function updateBadges(name){
@@ -673,17 +739,17 @@ function connectStream(name){
   };
 
   ws.onmessage = (e) => {
-    const line = e.data ?? "";
-    logs[name] = (logs[name] || "") + line + "\n";
+    const raw = e.data ?? "";
 
-    const parts = logs[name].split("\n");
-    if (parts.length > 5000) logs[name] = parts.slice(-5000).join("\n");
+    let msg = null;
+    try { msg = JSON.parse(raw); } catch { msg = null; }
 
-    const el = $("logs-" + cssSafe(name));
-    if (el) {
-      el.textContent = logs[name];
-      el.scrollTop = el.scrollHeight;
+    if (msg && msg.type){
+      handleEvent(name, msg);
+      return;
     }
+
+    appendLog(name, raw);
   };
 
   ws.onerror = () => {
@@ -695,7 +761,6 @@ function connectStream(name){
   ws.onclose = () => {
     delete sockets[name];
 
-    // ✅ Only mark ERROR if close was NOT intentional
     if (!intentionalClose[name]) {
       const c = containers.find(x => x.name === name);
       const enabled = c && (c.enabled === 1 || c.enabled === true);
@@ -703,9 +768,99 @@ function connectStream(name){
     } else {
       socketState[name] = "ok";
     }
-
     updateBadges(name);
   };
+}
+
+function handleEvent(containerName, msg){
+  aiState[containerName] = aiState[containerName] || {};
+
+  if (msg.type === "ping") return;
+
+  if (msg.type === "log"){
+    appendLog(containerName, msg.line || "");
+    return;
+  }
+
+  if (msg.type === "analysis"){
+    aiState[containerName].analysis = {
+      status: msg.status,
+      summary: msg.summary,
+      confidence: msg.confidence
+    };
+    rerenderCard(containerName);
+    return;
+  }
+
+  if (msg.type === "fix_suggestion"){
+    aiState[containerName].suggestion = {
+      command: msg.command,
+      confidence: msg.confidence,
+      reason: msg.reason,
+      source: msg.source
+    };
+    // clear old approval + in-flight locks on new suggestion
+    if (aiState[containerName].approval?.action_id){
+      delete actionInFlight[aiState[containerName].approval.action_id];
+    }
+    aiState[containerName].approval = null;
+    rerenderCard(containerName);
+    return;
+  }
+
+  if (msg.type === "approval_required"){
+    aiState[containerName].approval = {
+      action_id: msg.action_id,
+      command: msg.command,
+      confidence: msg.confidence,
+      threshold: msg.threshold,
+      reason: msg.reason,
+      status: "pending"
+    };
+    rerenderCard(containerName);
+    showToast(`🧑‍⚕️ Approval required for ${containerName}`);
+    return;
+  }
+
+  if (msg.type === "action_result"){
+    aiState[containerName].actionResult = {
+      action_id: msg.action_id,
+      status: msg.status,
+      message: msg.message
+    };
+
+    // ✅ always clear approval when we receive result for that action
+    if (aiState[containerName].approval && aiState[containerName].approval.action_id === msg.action_id){
+      aiState[containerName].approval = null;
+    }
+
+    // ✅ clear lock
+    delete actionInFlight[msg.action_id];
+
+    rerenderCard(containerName);
+    showToast(`✅ Action ${msg.status} for ${containerName}`);
+    return;
+  }
+
+  if (msg.type === "system_error"){
+    showToast(`⚠️ ${containerName}: ${msg.message || "system error"}`);
+    return;
+  }
+}
+
+function appendLog(name, line){
+  if (!line) return;
+
+  logs[name] = (logs[name] || "") + line + "\n";
+
+  const parts = logs[name].split("\n");
+  if (parts.length > 5000) logs[name] = parts.slice(-5000).join("\n");
+
+  const el = $("logs-" + cssSafe(name));
+  if (el) {
+    el.textContent = logs[name];
+    el.scrollTop = el.scrollHeight;
+  }
 }
 
 function disconnectStream(name, intentional=false){
@@ -716,7 +871,6 @@ function disconnectStream(name, intentional=false){
     delete sockets[name];
   }
 
-  // If intentional, don't show error
   if (intentional) socketState[name] = "ok";
   updateBadges(name);
 }
@@ -733,8 +887,6 @@ async function addContainer(){
 
   closeAddModal();
   showToast(`✅ Added & enabled: ${name}`);
-
-  // refresh will reconnect cleanly (without false error)
   await refresh();
 }
 
@@ -743,9 +895,9 @@ function confirmDelete(name){
     "Delete container",
     `Delete '${name}' from the database? This will stop streaming and remove it from the dashboard.`,
     async () => {
-      // stop stream intentionally so no false error
       disconnectStream(name, true);
       delete logs[name];
+      delete aiState[name];
 
       await apiFetch(`${API}/container/delete/${encodeURIComponent(name)}`, { method: "DELETE" });
       showToast(`🗑 Deleted: ${name}`);
@@ -789,6 +941,91 @@ function clearLogs(name){
   const el = $("logs-" + cssSafe(name));
   if (el) el.innerHTML = `<span class="hint">Logs cleared. Waiting for new logs...</span>`;
   showToast(`🧹 Cleared logs: ${name}`);
+}
+
+async function approveAction(containerName){
+  const a = aiState[containerName] || {};
+  const approval = a.approval;
+
+  if (!approval || !approval.action_id){
+    showToast("⚠️ No pending approval found");
+    return;
+  }
+
+  const actionId = approval.action_id;
+
+  // ✅ lock: prevent multiple clicks
+  if (actionInFlight[actionId]){
+    showToast("⏳ Action already executing");
+    return;
+  }
+  actionInFlight[actionId] = true;
+
+  // ✅ update UI immediately: executing
+  aiState[containerName].approval.status = "executing";
+  rerenderCard(containerName);
+
+  try{
+    await apiFetch(`${API}/actions/${encodeURIComponent(actionId)}`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ approve: true })
+    });
+
+    // Do NOT clear approval here; wait for WS action_result (source of truth)
+    showToast(`✅ Approved action for ${containerName}`);
+  }catch(e){
+    // unlock + revert status if request failed
+    delete actionInFlight[actionId];
+    if (aiState[containerName].approval && aiState[containerName].approval.action_id === actionId){
+      aiState[containerName].approval.status = "pending";
+    }
+    rerenderCard(containerName);
+  }
+}
+
+async function denyAction(containerName){
+  const a = aiState[containerName] || {};
+  const approval = a.approval;
+
+  if (!approval || !approval.action_id){
+    showToast("⚠️ No pending approval found");
+    return;
+  }
+
+  const actionId = approval.action_id;
+
+  // ✅ lock deny also (optional safety)
+  if (actionInFlight[actionId]){
+    showToast("⏳ Action already executing");
+    return;
+  }
+  actionInFlight[actionId] = true;
+
+  // show executing-ish state to block double click
+  aiState[containerName].approval.status = "executing";
+  rerenderCard(containerName);
+
+  try{
+    await apiFetch(`${API}/actions/${encodeURIComponent(actionId)}`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ approve: false })
+    });
+
+    // clear immediately (deny doesn't need to wait)
+    aiState[containerName].approval = null;
+    delete actionInFlight[actionId];
+    rerenderCard(containerName);
+
+    showToast(`⛔ Denied action for ${containerName}`);
+  }catch(e){
+    delete actionInFlight[actionId];
+    if (aiState[containerName].approval && aiState[containerName].approval.action_id === actionId){
+      aiState[containerName].approval.status = "pending";
+    }
+    rerenderCard(containerName);
+  }
 }
 
 // Helpers

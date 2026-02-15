@@ -20,6 +20,7 @@ from app.api.routes.documents.router import router as document_router
 from app.api.routes.llm.router import router as llm_router
 from app.api.routes.container.router import router as container_router
 from app.api.websocket.container_logs_ws import router as ws_router
+from app.api.routes.actions.router import router as actions_router
 
 app = FastAPI()
 
@@ -49,6 +50,7 @@ def startup_event():
 app.include_router(document_router, prefix="/document", tags=["document"])
 app.include_router(llm_router, prefix="/llm", tags=["llm"])
 app.include_router(container_router, prefix="/container", tags=["container"])
+app.include_router(actions_router, prefix="/actions", tags=["actions"])
 app.include_router(ws_router)
 
 # Static

@@ -2,7 +2,7 @@ from threading import Thread, Event
 import docker
 from docker.errors import NotFound
 from sqlalchemy.orm import Session
-
+from app.services.docker.container_watcher import watch_single_container
 from app.db.model.containers_model import Container
 
 docker_client = docker.from_env()
@@ -48,7 +48,6 @@ def start_watcher(container_name: str):
 
     stop_event = Event()
 
-    from app.services.docker.container_watcher import watch_single_container
 
     thread = Thread(
         target=watch_single_container,

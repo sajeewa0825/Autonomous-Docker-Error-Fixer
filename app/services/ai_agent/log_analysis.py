@@ -11,11 +11,9 @@ log_analyzer_llm = ChatGroq(
 )
 
 def safe_json_extract(text: str):
-    """Extract and parse the first JSON object from model output safely."""
     if not text:
-        return {"status": "ok", "summary": ""}
-    
-    # Remove ```json fences if present
+        return {"status": "ok", "summary": "", "confidence": 0.5}
+
     text = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
 
     try:
@@ -27,7 +25,7 @@ def safe_json_extract(text: str):
                 return json.loads(match.group(0))
             except Exception:
                 pass
-    return {"status": "ok", "summary": ""}
+    return {"status": "ok", "summary": "", "confidence": 0.5}
 
 
 def analyze_log_line(state):
@@ -35,21 +33,24 @@ def analyze_log_line(state):
     container_name = state["container_name"]
 
     prompt = ChatPromptTemplate.from_template("""
-    You are a Docker log analysis AI.
-    Analyze the given log line and output ONLY JSON (no markdown or text).
+You are a Docker log analysis AI.
+Output ONLY JSON.
 
-    If the line shows any sign of error (error, fail, exception, timeout, crash, etc),
-    set "status": "error". Otherwise, "status": "ok".
+Rules:
+- If log indicates error/failure/exception/timeout/crash -> status="error"
+- else status="ok"
+- Provide confidence in [0,1]
 
-    Log:
-    {log_line}
+Log:
+{log_line}
 
-    Response JSON format:
-    {{
-      "status": "error" | "ok",
-      "summary": "<short human-readable summary>"
-    }}
-    """)
+JSON:
+{{
+  "status": "error" | "ok",
+  "summary": "<short summary>",
+  "confidence": 0.0
+}}
+""")
 
     try:
         response = log_analyzer_llm.invoke(prompt.format(log_line=log_line))
@@ -58,19 +59,24 @@ def analyze_log_line(state):
 
         status = data.get("status", "ok")
         summary = data.get("summary", "")
+        conf = float(data.get("confidence", 0.5))
 
-        # 🚨 Simple fallback detection (if LLM failed but log clearly has "error")
+        # fallback keyword
         if "error" in log_line.lower() and status == "ok":
             status = "error"
             summary = summary or "Detected error keyword in log."
+            conf = max(conf, 0.65)
 
         if status == "error":
-            print(f"[{container_name}] :🚨 Detected error: {summary}")
+            print(f"[{container_name}] :🚨 Detected error: {summary} (conf={conf:.2f})")
         else:
-            print(f"[{container_name}] :✅ Log OK: no issues detected.")
+            print(f"[{container_name}] :✅ Log OK")
 
-        return {"analysis": json.dumps({"status": status, "summary": summary}), "status": status}
+        return {
+            "analysis": json.dumps({"status": status, "summary": summary, "confidence": conf}),
+            "status": status,
+        }
 
     except Exception as e:
-        print(f"[{container_name}] :⚠️ Error analyzing (analyzer) log: {e}")
-        return {"analysis": json.dumps({"status": "ok", "summary": ""}), "status": "ok"}
+        print(f"[{container_name}] :⚠️ Analyzer error: {e}")
+        return {"analysis": json.dumps({"status": "ok", "summary": "", "confidence": 0.5}), "status": "ok"}
