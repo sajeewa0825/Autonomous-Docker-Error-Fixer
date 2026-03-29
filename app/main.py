@@ -12,6 +12,7 @@ from app.core.loadenv import Settings
 from app.db.model.document_model import Document
 from app.db.model.chat_model import ChatHistory
 from app.db.model.containers_model import Container
+from app.db.model.error_log_model import ErrorLog
 
 from app.db.create_vector_index import create_vector_index
 from app.services.docker.watcher_manager import start_enabled_container_watchers
@@ -37,6 +38,8 @@ def startup_event():
     Document.metadata.create_all(bind=engine)
     ChatHistory.metadata.create_all(bind=engine)
     Container.metadata.create_all(bind=engine)
+    ErrorLog.metadata.create_all(bind=engine)
+
     create_vector_index()
 
     db: Session = next(get_db())
@@ -61,7 +64,6 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/config")
 def get_config():
-    # If API_BASE_URL not set, UI should use same origin
     return JSONResponse({
         "apiBaseUrl": Settings.API_BASE_URL
     })
@@ -71,7 +73,6 @@ async def read_root():
     html_path = STATIC_DIR / "index.html"
     html = html_path.read_text(encoding="utf-8")
 
-    # Inject config into HTML (available before UI script runs)
     injected = f"""
     <script>
       window.__APP_CONFIG__ = {{
@@ -80,7 +81,6 @@ async def read_root():
     </script>
     """
 
-    # Put injected config right before </head>
     if "</head>" in html:
         html = html.replace("</head>", injected + "\n</head>")
     else:

@@ -6,8 +6,10 @@ from threading import Event
 from docker.errors import NotFound, APIError
 
 from langchain_groq import ChatGroq
+
 from app.services.ai_agent.graph import build_agentic_rag_graph
 from app.core.loadenv import Settings
+from app.core.config import SessionLocal
 
 from app.services.docker.log_broadcaster import broadcast_event
 from app.services.actions.action_manager import (
@@ -15,6 +17,7 @@ from app.services.actions.action_manager import (
     should_auto_execute,
     approve_and_execute,
 )
+from app.services.docker.error_log_service import save_error_log
 
 docker_client = docker.from_env()
 
@@ -39,6 +42,32 @@ def _emit(container_name: str, payload: dict):
         asyncio.run(broadcast_event(container_name, payload))
     except Exception as e:
         print(f"⚠️ Broadcast failed [{container_name}]: {e}")
+
+
+def _save_error_record(
+    container_name: str,
+    raw_error_log_line: str,
+    suggested_command: str,
+    confidence: float,
+):
+    """
+    Save one error suggestion row into DB.
+    Uses a fresh DB session because watcher runs in a background thread.
+    """
+    db = SessionLocal()
+    try:
+        save_error_log(
+            db=db,
+            container_name=container_name,
+            raw_error_log_line=raw_error_log_line,
+            suggested_command=suggested_command,
+            confidence=confidence,
+        )
+    except Exception as e:
+        print(f"⚠️ Failed to save error log [{container_name}]: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 
 def _process_log_line(container_name: str, log_line: str):
@@ -79,6 +108,15 @@ def _process_log_line(container_name: str, log_line: str):
             "source": source,
             "reason": reason,
         })
+
+        # save only when there is a real suggested command
+        if command != "NO_ACTION_RECOMMENDED":
+            _save_error_record(
+                container_name=container_name,
+                raw_error_log_line=log_line,
+                suggested_command=command,
+                confidence=conf,
+            )
 
         if command == "NO_ACTION_RECOMMENDED":
             return
