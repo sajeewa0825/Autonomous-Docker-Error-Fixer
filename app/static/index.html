@@ -16,6 +16,7 @@
   --primary-2:#1d4ed8;
   --danger:#dc2626;
   --success:#16a34a;
+  --warning:#d97706;
   --shadow: 0 10px 25px rgba(15,23,42,.08);
   --radius: 14px;
 }
@@ -185,7 +186,6 @@ header{
 .btn.gray:hover{ opacity:.95; }
 .btn.small{ padding:8px 10px; border-radius: 10px; font-size:12px; }
 
-/* ✅ keep design, just disable visual */
 .btn[disabled]{
   opacity:.55;
   cursor:not-allowed;
@@ -330,7 +330,6 @@ header{
   border-top: 1px solid var(--border);
 }
 
-/* Toast */
 .toast{
   position: fixed;
   right: 18px;
@@ -351,7 +350,6 @@ header{
   transform: translateY(0);
 }
 
-/* Modal */
 .modal{
   position: fixed;
   inset: 0;
@@ -401,16 +399,38 @@ header{
   border-radius: 8px;
 }
 
-/* tiny info block (same design language) */
 .info{
   border-top: 1px solid var(--border);
   padding: 10px 14px;
   background: #fbfdff;
   font-size: 12px;
   color: var(--muted);
-  line-height: 1.45;
+  line-height: 1.55;
 }
 .info b{ color: var(--text); }
+
+.action-status{
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.action-status.pending{
+  background: rgba(217,119,6,.10);
+  color: var(--warning);
+}
+
+.action-status.success{
+  background: rgba(22,163,74,.10);
+  color: var(--success);
+}
+
+.action-status.failed{
+  background: rgba(220,38,38,.10);
+  color: var(--danger);
+}
 
 @media (max-width: 980px){
   .layout{ flex-direction: column; }
@@ -466,7 +486,6 @@ header{
 
 <div class="toast" id="toast"></div>
 
-<!-- Add Modal -->
 <div class="modal" id="addModal">
   <div class="card">
     <div class="top">
@@ -487,7 +506,6 @@ header{
   </div>
 </div>
 
-<!-- Confirm Modal -->
 <div class="modal" id="confirmModal">
   <div class="card">
     <div class="top">
@@ -505,9 +523,6 @@ header{
 </div>
 
 <script>
-/**
- * ✅ API/WS base URL loader (NO hardcode)
- */
 const __cfg = window.__APP_CONFIG__ || {};
 
 const API = (String(__cfg.apiBaseUrl || "").trim())
@@ -518,16 +533,12 @@ const WS_BASE = API.startsWith("https://")
   ? API.replace("https://", "wss://")
   : API.replace("http://", "ws://");
 
-// sockets
 const sockets = {};
 const socketState = {};
 const logs = {};
 const intentionalClose = {};
-
-// per container last AI state
 const aiState = {};
-// ✅ prevent double-click spam per action id
-const actionInFlight = {}; // action_id -> true
+const actionInFlight = {};
 
 let containers = [];
 
@@ -619,7 +630,7 @@ function renderContainerRow(c){
     </div>
     ${statusBadge(c)}
   `;
-  el.onclick = () => $("box-"+c.name)?.scrollIntoView({behavior:"smooth", block:"start"});
+  el.onclick = () => $("box-"+cssSafe(c.name))?.scrollIntoView({behavior:"smooth", block:"start"});
   $("containerList").appendChild(el);
 }
 
@@ -635,7 +646,7 @@ function renderLogCard(c){
 
   const card = document.createElement("div");
   card.className = "log-box";
-  card.id = "box-" + c.name;
+  card.id = "box-" + cssSafe(c.name);
 
   const infoBlock = buildInfoBlock(c.name, analysis, suggestion, approval, actionResult);
 
@@ -648,19 +659,19 @@ function renderLogCard(c){
 
       <div class="log-actions">
         ${enabled
-          ? `<button class="btn gray small" onclick="toggleEnabled('${escapeAttr(c.name)}', false)">Disable</button>`
-          : `<button class="btn primary small" onclick="toggleEnabled('${escapeAttr(c.name)}', true)">Enable</button>`
+          ? `<button class="btn gray small" onclick="toggleEnabled('${jsEscape(c.name)}', false)">Disable</button>`
+          : `<button class="btn primary small" onclick="toggleEnabled('${jsEscape(c.name)}', true)">Enable</button>`
         }
-        <button class="btn ghost small" onclick="clearLogs('${escapeAttr(c.name)}')">🧹 Clear</button>
-        <button class="btn danger small" onclick="confirmDelete('${escapeAttr(c.name)}')">Delete</button>
+        <button class="btn ghost small" onclick="clearLogs('${jsEscape(c.name)}')">🧹 Clear</button>
+        <button class="btn danger small" onclick="confirmDelete('${jsEscape(c.name)}')">Delete</button>
       </div>
     </div>
 
     ${infoBlock}
 
-    <div class="log-content" id="logs-${cssSafe(c.name)}">
-      ${hasLogs ? escapeHtml(logs[c.name]) : `<span class="hint">No logs yet. Enable the container to start streaming.</span>`}
-    </div>
+    <div class="log-content" id="logs-${cssSafe(c.name)}">${
+      hasLogs ? escapeHtml(logs[c.name]) : `<span class="hint">No logs yet. Enable the container to start streaming.</span>`
+    }</div>
 
     <div class="footer-note">
       <span class="kbd">PATCH</span> /container/update/{container_name} • <span class="kbd">WS</span> /ws/logs/{container_name}
@@ -689,7 +700,6 @@ function buildInfoBlock(containerName, analysis, suggestion, approval, actionRes
     html += `<div style="margin-top:6px"><b>Suggestion:</b> —</div>`;
   }
 
-  // ✅ Approval block with disable + executing state
   if (approval && approval.action_id){
     const thr = (approval.threshold != null) ? Number(approval.threshold).toFixed(2) : "-";
     const c = (approval.confidence != null) ? Number(approval.confidence).toFixed(2) : "-";
@@ -697,23 +707,24 @@ function buildInfoBlock(containerName, analysis, suggestion, approval, actionRes
     const disabledAttr = executing ? "disabled" : "";
     const label = executing ? "⏳ Executing..." : "✅ Approve & Execute";
 
-    html += `<div style="margin-top:10px"><b>Approval required</b> (conf ${c} / threshold ${thr})</div>`;
+    html += `<div class="action-status pending">Approval required (conf ${c} / threshold ${thr})</div>`;
     html += `<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn primary small" ${disabledAttr} onclick="approveAction('${escapeAttr(containerName)}')">${label}</button>
-        <button class="btn danger small" ${disabledAttr} onclick="denyAction('${escapeAttr(containerName)}')">⛔ Deny</button>
-      </div>`;
+      <button class="btn primary small" ${disabledAttr} onclick="approveAction('${jsEscape(containerName)}')">${label}</button>
+      <button class="btn danger small" ${disabledAttr} onclick="denyAction('${jsEscape(containerName)}')">⛔ Deny</button>
+    </div>`;
   }
 
   if (actionResult){
-    html += `<div style="margin-top:10px"><b>Last action:</b> ${escapeHtml(actionResult.status || "")} — ${escapeHtml(actionResult.message || "")}</div>`;
+    const st = String(actionResult.status || "").toLowerCase();
+    const cls = (st === "executed" || st === "denied") ? "success" : (st === "failed" ? "failed" : "pending");
+    html += `<div class="action-status ${cls}"><b>Last action:</b> ${escapeHtml(actionResult.status || "")} — ${escapeHtml(actionResult.message || "")}</div>`;
   }
 
   html += `</div>`;
   return html;
 }
 
-function rerenderCard(name){
-  // simplest consistent update
+function rerenderCard(){
   render();
 }
 
@@ -740,7 +751,6 @@ function connectStream(name){
 
   ws.onmessage = (e) => {
     const raw = e.data ?? "";
-
     let msg = null;
     try { msg = JSON.parse(raw); } catch { msg = null; }
 
@@ -788,7 +798,7 @@ function handleEvent(containerName, msg){
       summary: msg.summary,
       confidence: msg.confidence
     };
-    rerenderCard(containerName);
+    rerenderCard();
     return;
   }
 
@@ -799,12 +809,7 @@ function handleEvent(containerName, msg){
       reason: msg.reason,
       source: msg.source
     };
-    // clear old approval + in-flight locks on new suggestion
-    if (aiState[containerName].approval?.action_id){
-      delete actionInFlight[aiState[containerName].approval.action_id];
-    }
-    aiState[containerName].approval = null;
-    rerenderCard(containerName);
+    rerenderCard();
     return;
   }
 
@@ -817,7 +822,7 @@ function handleEvent(containerName, msg){
       reason: msg.reason,
       status: "pending"
     };
-    rerenderCard(containerName);
+    rerenderCard();
     showToast(`🧑‍⚕️ Approval required for ${containerName}`);
     return;
   }
@@ -829,15 +834,13 @@ function handleEvent(containerName, msg){
       message: msg.message
     };
 
-    // ✅ always clear approval when we receive result for that action
     if (aiState[containerName].approval && aiState[containerName].approval.action_id === msg.action_id){
       aiState[containerName].approval = null;
     }
 
-    // ✅ clear lock
     delete actionInFlight[msg.action_id];
 
-    rerenderCard(containerName);
+    rerenderCard();
     showToast(`✅ Action ${msg.status} for ${containerName}`);
     return;
   }
@@ -954,16 +957,14 @@ async function approveAction(containerName){
 
   const actionId = approval.action_id;
 
-  // ✅ lock: prevent multiple clicks
   if (actionInFlight[actionId]){
     showToast("⏳ Action already executing");
     return;
   }
   actionInFlight[actionId] = true;
 
-  // ✅ update UI immediately: executing
   aiState[containerName].approval.status = "executing";
-  rerenderCard(containerName);
+  rerenderCard();
 
   try{
     await apiFetch(`${API}/actions/${encodeURIComponent(actionId)}`, {
@@ -972,15 +973,13 @@ async function approveAction(containerName){
       body: JSON.stringify({ approve: true })
     });
 
-    // Do NOT clear approval here; wait for WS action_result (source of truth)
     showToast(`✅ Approved action for ${containerName}`);
   }catch(e){
-    // unlock + revert status if request failed
     delete actionInFlight[actionId];
     if (aiState[containerName].approval && aiState[containerName].approval.action_id === actionId){
       aiState[containerName].approval.status = "pending";
     }
-    rerenderCard(containerName);
+    rerenderCard();
   }
 }
 
@@ -995,16 +994,14 @@ async function denyAction(containerName){
 
   const actionId = approval.action_id;
 
-  // ✅ lock deny also (optional safety)
   if (actionInFlight[actionId]){
     showToast("⏳ Action already executing");
     return;
   }
   actionInFlight[actionId] = true;
 
-  // show executing-ish state to block double click
   aiState[containerName].approval.status = "executing";
-  rerenderCard(containerName);
+  rerenderCard();
 
   try{
     await apiFetch(`${API}/actions/${encodeURIComponent(actionId)}`, {
@@ -1013,23 +1010,20 @@ async function denyAction(containerName){
       body: JSON.stringify({ approve: false })
     });
 
-    // clear immediately (deny doesn't need to wait)
-    aiState[containerName].approval = null;
-    delete actionInFlight[actionId];
-    rerenderCard(containerName);
-
     showToast(`⛔ Denied action for ${containerName}`);
   }catch(e){
     delete actionInFlight[actionId];
     if (aiState[containerName].approval && aiState[containerName].approval.action_id === actionId){
       aiState[containerName].approval.status = "pending";
     }
-    rerenderCard(containerName);
+    rerenderCard();
   }
 }
 
-// Helpers
-function cssSafe(s){ return s.replace(/[^a-zA-Z0-9_-]/g, "_"); }
+function cssSafe(s){
+  return String(s).replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
 function escapeHtml(str){
   return String(str)
     .replaceAll("&","&amp;")
@@ -1038,9 +1032,13 @@ function escapeHtml(str){
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
 }
-function escapeAttr(str){ return String(str).replaceAll("'", "\\'"); }
 
-// Initial
+function jsEscape(str){
+  return String(str)
+    .replaceAll("\\", "\\\\")
+    .replaceAll("'", "\\'");
+}
+
 refresh();
 </script>
 </body>
