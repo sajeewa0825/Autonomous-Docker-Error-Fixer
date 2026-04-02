@@ -1,13 +1,20 @@
 from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from app.core.loadenv import Settings
 import json
 import re
 
-log_analyzer_llm = ChatGroq(
-    model=Settings.MODEL_NAME,
+# log_analyzer_llm = ChatGroq(
+#     model=Settings.MODEL_NAME,
+#     temperature=0,
+#     api_key=Settings.GROQ_API_KEY,
+# )
+
+log_analyzer_llm = ChatOllama(
+    model=Settings.OLLAMA_MODEL_NAME,          
+    base_url=Settings.OLLAMA_BASE_URL,         
     temperature=0,
-    api_key=Settings.GROQ_API_KEY,
 )
 
 def safe_json_extract(text: str):

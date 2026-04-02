@@ -18,5 +18,7 @@ class Settings:
     AUTO_EXECUTE_FIXES: bool = os.getenv("AUTO_EXECUTE_FIXES", "false").lower() == "true"
     APPROVAL_MIN_CONFIDENCE: float = float(os.getenv("APPROVAL_MIN_CONFIDENCE", 0.85))
     MAX_LOG_LINES_PER_CONTAINER: int = int(os.getenv("MAX_LOG_LINES_PER_CONTAINER", 5000))
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_MODEL_NAME: str = os.getenv("OLLAMA_MODEL_NAME", "qwen3.5:9b")
 
 settings = Settings()
